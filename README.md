@@ -14,7 +14,6 @@ zero-dependency Python substrate.
 from interlock import Interlock
 
 ilk = Interlock()
-
 # STAGE 1 — GRANT: authority comes into existence only here, and it expires.
 lease = ilk.grant(resource="docs:write", holder="research-agent", ttl=1800)
 
@@ -35,6 +34,11 @@ claim = ilk.claim(
     falsifier="re-fetch returns different content",
 )  # auto-appended to the ledger's "claims" series
 ```
+
+**90-second demonstrator:** `python3 scripts/demo_90s.py` — a narrated
+end-to-end run (grant → keepalive → permit → expiry denial → fault gate →
+e-stop → claim → ledger audit). Expected output in
+[`demo/TRANSCRIPT.md`](demo/TRANSCRIPT.md).
 
 ## Why this exists
 
