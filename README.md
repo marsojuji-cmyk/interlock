@@ -1,10 +1,7 @@
 # Interlock
 
-**Leased authority, a global e-stop, a fault bus, and provenance — for AI agent systems.**
-
-Agents act with ambient, unexpiring authority: filesystem, credentials, and
-network granted once for the whole session, revoked only by killing the
-process. Mobile robots solved this a decade ago — Boston Dynamics' Spot
+**Ambient agent authority — filesystem, credentials, and network granted once for the whole session, revoked only by killing the process — replaced with leases that expire on their own clock.** Global e-stop and fault bus. Every action passes the gate: e-stop clear, lease live and keepalive-fresh, no gating fault. A fault refuses further permits on the affected resource. Claims carry provenance.
+Mobile robots solved this a decade ago — Boston Dynamics' Spot
 admits intent through a narrow gate of *command plus lease plus clock*, with
 keepalives, a global e-stop, and a fault taxonomy as structure, not policy.
 Interlock transfers that architecture to software agents as a
@@ -36,9 +33,9 @@ claim = ilk.claim(
 )  # auto-appended to the ledger's "claims" series
 ```
 
-## Why this exists
+## The threat
 
-The 2026 agent stack has an authority problem, not a capability problem.
+Agents act with ambient, unexpiring authority: filesystem, credentials, and network granted once for the whole session, revoked only by killing the process. The 2026 agent stack has an authority problem, not a capability problem.
 Interlock is one layer of a defense-in-depth posture: *within* the
 substrate, no action executes without a live lease, a clear e-stop, and no
 gating fault. That property is tested, and the tests ship with the release.
