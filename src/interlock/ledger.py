@@ -5,6 +5,11 @@ on first use, every record carries its series and capture time, and the log
 closes with a random-access index. A reader with no prior knowledge can
 still audit the run. Accepts a path string, a file-like object, or nothing
 — the default is an in-memory buffer.
+
+A path opens in append mode by default: reopening an existing ledger keeps
+every earlier run and starts a new self-describing segment (format
+descriptor, series descriptors, records, closing index). Pass ``mode="w"``
+to truncate deliberately.
 """
 
 import io
@@ -14,19 +19,27 @@ from typing import Any, TextIO
 
 FORMAT = "interlock-ledger"
 VERSION = "1.0.0"
+MODES = ("a", "w")
 
 
 class Ledger:
     """Append-only JSONL log with format descriptor, series descriptors, and a closing index."""
 
-    def __init__(self, dest: str | TextIO | None = None) -> None:
+    def __init__(self, dest: str | TextIO | None = None, mode: str = "a") -> None:
+        """Open a ledger.
+
+        ``mode`` applies only when ``dest`` is a path: ``"a"`` (default) appends
+        a new segment and preserves earlier runs; ``"w"`` truncates the file.
+        """
+        if mode not in MODES:
+            raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
         self._path: str | None = None
         self._owns_handle = False
         if dest is None:
             self._buf: TextIO = io.StringIO()
         elif isinstance(dest, str):
             self._path = dest
-            self._buf = open(dest, "w", encoding="utf-8")  # noqa: SIM115 -- owned, closed by close()
+            self._buf = open(dest, mode, encoding="utf-8")  # noqa: SIM115 -- owned, closed by close()
             self._owns_handle = True
         else:
             self._buf = dest
@@ -86,7 +99,11 @@ class Ledger:
             self._buf.close()
 
     def read_series(self, series: str):
-        """Yield the record dicts of one series, in append order."""
+        """Yield the record dicts of one series, in append order.
+
+        For a path-backed ledger this spans every segment in the file,
+        earlier runs included.
+        """
         for line in self._lines():
             try:
                 obj = json.loads(line)
