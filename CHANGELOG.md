@@ -12,6 +12,10 @@ the current version is `interlock.__version__` (mirrored into `VERSION` by
   default, so reopening a ledger keeps every earlier run and starts a new self-describing
   segment. `Ledger(path, mode="w")` truncates deliberately; any other mode raises
   `ValueError`. Regression tests: `tests/test_ledger_reopen.py`.
+- The ledger flushes every line as it writes it. A record now survives the writing process
+  crashing before `close()`; before, records sat in the process buffer and died with it.
+  `close()` fsyncs a file the ledger opened itself. Regression tests:
+  `tests/test_ledger_durability.py`.
 
 ## [0.1.0] — 2026-09-27
 ### Added
