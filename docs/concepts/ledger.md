@@ -21,6 +21,12 @@ The first line is always the format descriptor:
 It tells a future reader what grammar the rest of the file speaks, before
 a single event is recorded.
 
+A path opens in append mode. Reopening an existing ledger, as every new
+process does, keeps every earlier run and starts a new segment with its own
+format descriptor, series descriptors, and closing index. `read_series()`
+on a path-backed ledger replays every segment in the file. Truncation is
+never the default: pass `mode="w"` to discard a file deliberately.
+
 ### STAGE 2 — APPEND
 
 The first append to a new series writes a series descriptor declaring the

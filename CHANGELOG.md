@@ -7,6 +7,11 @@ the current version is `interlock.__version__` (mirrored into `VERSION` by
 `scripts/release.sh`).
 
 ## [Unreleased]
+### Fixed
+- `Ledger(path)` no longer erases an existing audit log. A path opens in append mode by
+  default, so reopening a ledger keeps every earlier run and starts a new self-describing
+  segment. `Ledger(path, mode="w")` truncates deliberately; any other mode raises
+  `ValueError`. Regression tests: `tests/test_ledger_reopen.py`.
 
 ## [0.1.0] — 2026-09-27
 ### Added
