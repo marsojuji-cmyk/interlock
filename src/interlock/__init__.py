@@ -7,8 +7,8 @@ The single entry point is :class:`Interlock`, a facade over the substrate:
 - ``.faults`` — the shared :class:`~interlock.faults.FaultBus`.
 - ``.ledger`` — the self-describing :class:`~interlock.ledger.Ledger`.
 
-Every permit passes the gate in order: e-stop clear, lease live, no gating
-fault on the lease's resource.
+Every permit passes the gate in order: e-stop clear, lease issued by this
+facade and live, no gating fault on the lease's resource.
 """
 
 from collections.abc import Callable, Iterator
@@ -19,6 +19,7 @@ from interlock._errors import (
     FaultActive,
     InterlockError,
     LeaseExpired,
+    LeaseNotIssued,
     LeaseRevoked,
 )
 from interlock.claims import Claim
@@ -43,6 +44,7 @@ __all__ = [
     "Lease",
     "LeaseExpired",
     "LeaseManager",
+    "LeaseNotIssued",
     "LeaseRevoked",
     "Ledger",
     "__version__",
@@ -95,8 +97,9 @@ class Interlock:
         """Permit exactly one action on one target, checking in order:
 
         1. e-stop clear → else :exc:`EStopEngaged`
-        2. lease live (held, unrevoked, unexpired) → else :exc:`LeaseRevoked`
-           or :exc:`LeaseExpired`
+        2. lease issued by this facade's manager and unaltered → else
+           :exc:`LeaseNotIssued`; then live (unrevoked, unexpired) → else
+           :exc:`LeaseRevoked` or :exc:`LeaseExpired`
         3. no gating fault on the lease's resource → else :exc:`FaultActive`
 
         Permits and denials are appended to the ledger.
@@ -113,7 +116,12 @@ class Interlock:
         except EStopEngaged:
             self.ledger.append("denials", {**base, "reason": "estop"})
             raise
-        if lease.revoked:
+        if not self.leases.issued(lease):
+            self.ledger.append("denials", {**base, "reason": "lease_not_issued"})
+            raise LeaseNotIssued(
+                f"lease {lease.id} for {lease.resource} was not issued by this Interlock"
+            )
+        if self.leases.is_revoked(lease):
             self.ledger.append("denials", {**base, "reason": "lease_revoked"})
             raise LeaseRevoked(f"lease {lease.id} for {lease.resource} was revoked")
         if not self.leases.is_live(lease):

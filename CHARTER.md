@@ -51,7 +51,8 @@ an unexercised grant persists.
 
 To act, the agent presents the lease and requests a permit for a specific
 action on a specific target. The interlock checks, in order: is the e-stop
-clear? Is the lease live (held, unexpired, keepalive-fresh)? Is there an
+clear? Is the lease live (issued by this interlock, unaltered, unexpired,
+keepalive-fresh)? Is there an
 active fault gating this resource? Only if all three pass is the permit
 issued — and the permit covers exactly the requested action, nothing more.
 
