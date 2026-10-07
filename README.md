@@ -1,29 +1,50 @@
 # Interlock
 
-**Ambient agent authority — filesystem, credentials, and network granted once for the whole session, revoked only by killing the process — replaced with leases that expire on their own clock.** Global e-stop and fault bus. Every action passes the gate: e-stop clear, lease live and keepalive-fresh, no gating fault. A fault refuses further permits on the affected resource. Claims carry provenance.
-Mobile robots solved this a decade ago — Boston Dynamics' Spot
-admits intent through a narrow gate of *command plus lease plus clock*, with
-keepalives, a global e-stop, and a fault taxonomy as structure, not policy.
-Interlock transfers that architecture to software agents as a
-zero-dependency Python substrate.
+**Interlock replaces ambient agent authority with leases that expire on their own clock. A global e-stop and a fault bus gate every action, and the gate fails closed.**
+
+[![CI](https://github.com/marsojuji-cmyk/interlock/actions/workflows/ci.yml/badge.svg)](https://github.com/marsojuji-cmyk/interlock/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python 3.11–3.13](https://img.shields.io/badge/python-3.11%E2%80%933.13-blue.svg)](pyproject.toml) [![Release](https://img.shields.io/github/v/release/marsojuji-cmyk/interlock)](https://github.com/marsojuji-cmyk/interlock/releases)
+
+Agents act with ambient, unexpiring authority. Filesystem, credentials, and network access get granted once for the whole session and revoked only by killing the process. The 2026 agent stack has an authority problem, not a capability problem.
+
+Mobile robots solved this a decade ago. Boston Dynamics' Spot admits intent through a narrow gate of *command plus lease plus clock*, with keepalives, a global e-stop, and a fault taxonomy built into the structure rather than written as policy. Interlock transfers that architecture to software agents as a zero-dependency Python substrate.
+
+## What it guarantees
+
+Inside the substrate, **no action executes without a live lease, a clear e-stop, and no gating fault.** `Interlock.permit()` checks in this order and raises on the first failure:
+
+1. e-stop clear, else `EStopEngaged`
+2. lease held, unrevoked, and unexpired, else `LeaseRevoked` or `LeaseExpired`
+3. no `major` or `critical` fault on the lease's resource, else `FaultActive`
+
+- **Authority expires.** A lease exists only from `grant()` and dies at `expires_at` unless a keepalive renews it.
+- **A keepalive cannot resurrect a dead lease.** Renewal after expiry or revocation raises.
+- **Revocation is permanent.**
+- **E-stop release is an operator decision, never a timeout.** One engagement refuses every permit until an explicit `release()`.
+- **Every permit and every denial is recorded** in the ledger's `permits` or `denials` series, with the reason.
+- **Claims carry provenance:** source, authority (the lease id), review date, and a falsifier.
+
+## Quickstart
+
+```bash
+pip install -e ".[test]" && pytest -q
+```
 
 ```python
 from interlock import Interlock
 
 ilk = Interlock()
 
-# STAGE 1 — GRANT: authority comes into existence only here, and it expires.
+# GRANT: authority comes into existence only here, and it expires.
 lease = ilk.grant(resource="docs:write", holder="research-agent", ttl=1800)
 
-# STAGE 2 — EXERCISE: every action passes the gate —
-# e-stop clear? lease live and keepalive-fresh? no gating fault?
+# EXERCISE: every action passes the gate.
 with ilk.permit(lease, action="write", target="brief.md"):
-    ...  # raises LeaseExpired, EStopEngaged, or FaultActive otherwise
+    ...  # raises EStopEngaged, LeaseRevoked, LeaseExpired, or FaultActive otherwise
 
-# A fault refuses further permits on the affected resource.
+# A major or critical fault refuses further permits on the affected resource.
 ilk.faults.report(code="TOOL_TIMEOUT", severity="major", resource="web:read")
 
-# STAGE 3 — AUDIT: claims carry provenance, authority, review date, falsifier.
+# AUDIT: claims carry provenance, authority, review date, falsifier.
 claim = ilk.claim(
     text="14 pages fetched; 2 endpoints timed out.",
     provenance="tool:web-fetch",
@@ -33,40 +54,41 @@ claim = ilk.claim(
 )  # auto-appended to the ledger's "claims" series
 ```
 
-## The threat
+The fastest path to a first lease is [`docs/guides/quickstart.md`](docs/guides/quickstart.md).
 
-Agents act with ambient, unexpiring authority: filesystem, credentials, and network granted once for the whole session, revoked only by killing the process. The 2026 agent stack has an authority problem, not a capability problem.
-Interlock is one layer of a defense-in-depth posture: *within* the
-substrate, no action executes without a live lease, a clear e-stop, and no
-gating fault. That property is tested, and the tests ship with the release.
+## How it fails
+
+| Condition | Behavior |
+|---|---|
+| E-stop engaged | Every `permit()` raises `EStopEngaged` and logs a `denials` record |
+| Lease expired (no keepalive in time) | `LeaseExpired`. A late keepalive also raises |
+| Lease revoked | `LeaseRevoked`, permanently |
+| `major`/`critical` fault on the resource | `FaultActive` until the fault is cleared. `minor` faults are recorded but do not gate |
+
+**Known limits:**
+- The gate runs at `permit()` entry. An e-stop engaged *during* a `with` block does not interrupt code already running inside it; it refuses the next permit.
+- State is in-process and in-memory. Interlock gates actions routed through it and cannot stop an agent that bypasses the substrate. It is one layer of defense in depth.
+- The ledger is append-only and self-describing JSONL (format descriptor, per-series schemas, closing index). It is **not** hash-chained or signed, so treat it as an audit log, not tamper evidence.
+
+[`CHARTER.md`](CHARTER.md) has the full design rationale and safety caveats.
+
+## Evidence
+
+- **50 tests pass:** `pytest -q`, run 2026-10-07 on `main`. CI runs the same suite on Python 3.11, 3.12, and 3.13, plus `ruff` lint and format checks and a version-consistency check.
+- The quickstart above was executed on 2026-10-07: the gate refused a permit with `FaultActive` after a `major` fault.
+- [`INTAKE_LEDGER.md`](INTAKE_LEDGER.md) lists every source behind the transfer, with reading depth and an explicit unverified list.
 
 ## Layout
 
-- `src/interlock/` — the substrate: `leases`, `estop`, `faults`, `claims`,
-  `interfaces`, `ledger`. Zero runtime dependencies.
-- `docs/concepts/` — concept documentation in the Boston Dynamics register.
-- `docs/guides/quickstart.md` — the fastest path to a first lease.
-- `CHARTER.md` — the full design rationale, including the safety caveats.
-- `INTAKE_LEDGER.md` — every source behind the transfer, with reading depth
-  and an explicit unverified list.
+- `src/interlock/`: `leases`, `estop`, `faults`, `claims`, `interfaces`, `ledger`. Zero runtime dependencies.
+- `docs/concepts/`: concept documentation.
+- `docs/guides/quickstart.md`: first lease.
+- `CHARTER.md`: design rationale and safety caveats.
 
 ## Status
 
-v0.1.0 — core substrate with tests. See `CHANGELOG.md`.
+v0.1.0 ([release](https://github.com/marsojuji-cmyk/interlock/releases/tag/v0.1.0), 2026-09-27): core substrate with tests. See [`CHANGELOG.md`](CHANGELOG.md).
 
 ## License
 
-MIT — see `LICENSE`.
-
----
-
-## Verify it yourself
-
-```bash
-pip install -e ".[test]" && pytest -q
-```
-
-The same command this repository's CI runs on every push. If it does not pass on a clean clone,
-the CI badge is wrong and so is this README — please open an issue.
-
-Every claim in this README is meant to be checkable by someone who does not trust it yet.
+MIT. See [LICENSE](LICENSE).
