@@ -16,6 +16,18 @@ the current version is `interlock.__version__` (mirrored into `VERSION` by
   crashing before `close()`; before, records sat in the process buffer and died with it.
   `close()` fsyncs a file the ledger opened itself. Regression tests:
   `tests/test_ledger_durability.py`.
+- `Interlock.permit()` rejects any lease it didn't issue. Before, a hand-built `Lease` with a
+  far-future `expires_at` passed the gate. `LeaseManager` now keeps its own record of every
+  lease it grants, and that record decides expiry and revocation. A hand-built lease, a
+  lease from another manager, or a lease whose resource, holder, TTL, or grant time was
+  edited after issue raises `LeaseNotIssued`, and the denial is logged with reason
+  `lease_not_issued`. Editing `expires_at` or clearing `revoked` on a `Lease` object no
+  longer extends or restores authority. `keepalive()` rejects unissued leases. Regression
+  tests: `tests/test_lease_issuance.py`.
+
+### Added
+- `interlock.LeaseNotIssued`, a subclass of `InterlockError`, plus `LeaseManager.issued()`
+  and `LeaseManager.is_revoked()`.
 
 ## [0.1.0] — 2026-09-27
 ### Added

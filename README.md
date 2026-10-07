@@ -13,11 +13,12 @@ Mobile robots solved this a decade ago. Boston Dynamics' Spot admits intent thro
 Inside the substrate, **no action executes without a live lease, a clear e-stop, and no gating fault.** `Interlock.permit()` checks in this order and raises on the first failure:
 
 1. e-stop clear, else `EStopEngaged`
-2. lease held, unrevoked, and unexpired, else `LeaseRevoked` or `LeaseExpired`
+2. lease issued by this `Interlock` and unaltered, else `LeaseNotIssued`; then unrevoked and unexpired, else `LeaseRevoked` or `LeaseExpired`
 3. no `major` or `critical` fault on the lease's resource, else `FaultActive`
 
 - **Authority expires.** A lease exists only from `grant()` and dies at `expires_at` unless a keepalive renews it.
 - **A keepalive cannot resurrect a dead lease.** Renewal after expiry or revocation raises.
+- **Only issued leases pass.** The lease manager keeps its own record of every lease it grants, and that record decides expiry and revocation. Editing a `Lease` object grants nothing.
 - **Revocation is permanent.**
 - **E-stop release is an operator decision, never a timeout.** One engagement refuses every permit until an explicit `release()`.
 - **Every permit and every denial is recorded** in the ledger's `permits` or `denials` series, with the reason.
@@ -39,7 +40,7 @@ lease = ilk.grant(resource="docs:write", holder="research-agent", ttl=1800)
 
 # EXERCISE: every action passes the gate.
 with ilk.permit(lease, action="write", target="brief.md"):
-    ...  # raises EStopEngaged, LeaseRevoked, LeaseExpired, or FaultActive otherwise
+    ...  # raises EStopEngaged, LeaseNotIssued, LeaseRevoked, LeaseExpired, or FaultActive otherwise
 
 # A major or critical fault refuses further permits on the affected resource.
 ilk.faults.report(code="TOOL_TIMEOUT", severity="major", resource="web:read")
@@ -62,7 +63,8 @@ The fastest path to a first lease is [`docs/guides/quickstart.md`](docs/guides/q
 |---|---|
 | E-stop engaged | Every `permit()` raises `EStopEngaged` and logs a `denials` record |
 | Lease expired (no keepalive in time) | `LeaseExpired`. A late keepalive also raises |
-| Lease revoked | `LeaseRevoked`, permanently |
+| Lease not issued by this `Interlock` (hand-built, from another instance, or edited after issue) | `LeaseNotIssued` and a `denials` record with reason `lease_not_issued` |
+| Lease revoked | `LeaseRevoked`, permanently. Resetting `lease.revoked` on the object does not restore it |
 | `major`/`critical` fault on the resource | `FaultActive` until the fault is cleared. `minor` faults are recorded but do not gate |
 
 **Known limits:**
@@ -74,7 +76,7 @@ The fastest path to a first lease is [`docs/guides/quickstart.md`](docs/guides/q
 
 ## Evidence
 
-- **59 tests pass:** `pytest -q`, run 2026-10-07 on `main`. CI runs the same suite on Python 3.11, 3.12, and 3.13, plus `ruff` lint and format checks and a version-consistency check.
+- **68 tests pass:** `pytest -q`, run 2026-10-07 on `main`. CI runs the same suite on Python 3.11, 3.12, and 3.13, plus `ruff` lint and format checks and a version-consistency check.
 - The quickstart above was executed on 2026-10-07: the gate refused a permit with `FaultActive` after a `major` fault.
 - [`INTAKE_LEDGER.md`](INTAKE_LEDGER.md) lists every source behind the transfer, with reading depth and an explicit unverified list.
 

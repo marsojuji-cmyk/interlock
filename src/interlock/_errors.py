@@ -14,6 +14,10 @@ class LeaseExpired(InterlockError):
     """A lease was exercised after its expiry without a keepalive renewal."""
 
 
+class LeaseNotIssued(InterlockError):
+    """A lease was presented that this lease manager never issued, or was altered after issue."""
+
+
 class LeaseRevoked(InterlockError):
     """A lease was exercised after being revoked by its granter."""
 

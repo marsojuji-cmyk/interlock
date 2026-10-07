@@ -38,6 +38,12 @@ decays, and nothing about an unexercised grant persists. Revocation is the
 deliberate counterpart: immediate, permanent, and checked before expiry in
 every gate.
 
+The manager keeps its own record of every lease it grants, and that record
+decides expiry and revocation. A hand-built `Lease`, a lease from another
+manager, or a lease whose resource, holder, TTL, or grant time was edited
+after issue fails with `LeaseNotIssued`. Pushing `expires_at` forward or
+clearing `revoked` on the object grants nothing.
+
 ## Safety
 
 Leases are designed to reduce the risk of authority outliving its need. They
@@ -45,7 +51,8 @@ are not designed to eliminate it. A lease system cannot constrain code that
 bypasses it, and a TTL cannot help if the TTL is a year. Operators SHOULD
 treat short TTLs and frequent keepalives as the normal posture, not as
 paranoia. The checkable guarantee is narrower: *within* the substrate, no
-permit issues against an expired or revoked lease, and the tests cover it.
+permit issues against a lease the manager did not issue, or against an
+expired or revoked lease. The tests cover both.
 
 ## A lease, end to end
 

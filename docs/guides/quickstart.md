@@ -30,9 +30,10 @@ with ilk.permit(lease, action="write", target="notes.md"):
     Path("notes.md").write_text("hello")
 ```
 
-The gate checks, in order: e-stop clear, lease live, no gating fault on
-`docs:write`. If any check fails, the context manager raises instead of
-yielding — `EStopEngaged`, `LeaseExpired`/`LeaseRevoked`, or `FaultActive`.
+The gate checks, in order: e-stop clear, lease issued by this `Interlock`
+and live, no gating fault on `docs:write`. If any check fails, the context
+manager raises instead of yielding — `EStopEngaged`, `LeaseNotIssued`,
+`LeaseExpired`/`LeaseRevoked`, or `FaultActive`.
 
 ## 4. Watch a fault refuse
 
