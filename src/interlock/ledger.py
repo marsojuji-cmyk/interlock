@@ -10,10 +10,14 @@ A path opens in append mode by default: reopening an existing ledger keeps
 every earlier run and starts a new self-describing segment (format
 descriptor, series descriptors, records, closing index). Pass ``mode="w"``
 to truncate deliberately.
+
+Every line is flushed as it is written, so a record survives the writing
+process crashing. ``close()`` also fsyncs a file the ledger opened itself.
 """
 
 import io
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any, TextIO
 
@@ -48,7 +52,9 @@ class Ledger:
         self._write({"_type": "format", "format": FORMAT, "version": VERSION})
 
     def _write(self, obj: dict[str, Any]) -> None:
+        # Flush every line: a record buffered in-process dies with the process.
         self._buf.write(json.dumps(obj) + "\n")
+        self._buf.flush()
 
     def _lines(self) -> list[str]:
         if self._path is not None:
@@ -94,8 +100,8 @@ class Ledger:
         self._closed = True
         index = {name: dict(info) for name, info in self._series.items()}
         self._write({"_type": "index", "series": index})
-        self._buf.flush()
         if self._owns_handle:
+            os.fsync(self._buf.fileno())  # one fsync per run: the closed file is on disk
             self._buf.close()
 
     def read_series(self, series: str):

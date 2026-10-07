@@ -68,13 +68,13 @@ The fastest path to a first lease is [`docs/guides/quickstart.md`](docs/guides/q
 **Known limits:**
 - The gate runs at `permit()` entry. An e-stop engaged *during* a `with` block does not interrupt code already running inside it; it refuses the next permit.
 - State is in-process and in-memory. Interlock gates actions routed through it and cannot stop an agent that bypasses the substrate. It is one layer of defense in depth.
-- The ledger is append-only and self-describing JSONL (format descriptor, per-series schemas, closing index). Reopening a path appends a new segment and never truncates unless you pass `mode="w"`. It is **not** hash-chained or signed, so treat it as an audit log, not tamper evidence.
+- The ledger is append-only and self-describing JSONL (format descriptor, per-series schemas, closing index). Reopening a path appends a new segment and never truncates unless you pass `mode="w"`. Every record is flushed as it is written, so it survives a crash of the writing process. Only `close()` fsyncs, so a power loss can still drop the last records. It is **not** hash-chained or signed, so treat it as an audit log, not tamper evidence.
 
 [`CHARTER.md`](CHARTER.md) has the full design rationale and safety caveats.
 
 ## Evidence
 
-- **55 tests pass:** `pytest -q`, run 2026-10-07 on `main`. CI runs the same suite on Python 3.11, 3.12, and 3.13, plus `ruff` lint and format checks and a version-consistency check.
+- **59 tests pass:** `pytest -q`, run 2026-10-07 on `main`. CI runs the same suite on Python 3.11, 3.12, and 3.13, plus `ruff` lint and format checks and a version-consistency check.
 - The quickstart above was executed on 2026-10-07: the gate refused a permit with `FaultActive` after a `major` fault.
 - [`INTAKE_LEDGER.md`](INTAKE_LEDGER.md) lists every source behind the transfer, with reading depth and an explicit unverified list.
 
