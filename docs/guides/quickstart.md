@@ -6,30 +6,29 @@ not sandbox code outside the gate or stop an action that is already running.
 
 ## 0. Install in a supported environment
 
-Interlock requires Python >=3.11 and its build backend requires
+Interlock requires Python 3.11 or newer, and its build backend requires
 `setuptools>=68`. From a scratch directory, clone the repository, create a
-local virtual environment, and install the checked-out package:
+virtual environment with a supported interpreter, and install the checked-out
+package:
 
 ```bash
 git clone https://github.com/marsojuji-cmyk/interlock.git
 cd interlock
-python3.11 -m venv .venv
+python3 -m venv .venv   # python3 must be 3.11+; use python3.11 etc. if needed
 . .venv/bin/activate
 python -m pip install --upgrade "setuptools>=68"
 python -m pip install .
 ```
 
-Use the supported interpreter consistently: every Python example below is
-intended to run as `python` from this activated environment. No pytest
-installation is needed for this guide.
+Every Python block below runs in order, as one session, with `python` from
+this activated environment. This guide needs no pytest install.
 
 ## 1. Create the interlock
 
 ```python
 from pathlib import Path
 
-from interlock import Interlock
-from interlock._errors import EStopEngaged, FaultActive, LeaseExpired, LeaseRevoked
+from interlock import EStopEngaged, FaultActive, Interlock
 
 ilk = Interlock()
 ```
@@ -54,11 +53,12 @@ with ilk.permit(lease, action="write", target="notes.md"):
     Path("notes.md").write_text("hello")
 ```
 
-The gate checks, in order: e-stop clear, lease live, and no gating fault on
-`docs:write`. If any check fails, the context manager raises instead of
-yielding — `EStopEngaged`, `LeaseExpired`/`LeaseRevoked`, or `FaultActive`.
-The check controls admission to the context; it is not an OS sandbox and it
-cannot interrupt an action that has already started.
+The gate checks, in order: e-stop clear, lease issued by this `Interlock`
+and live, and no gating fault on `docs:write`. If any check fails, the
+context manager raises instead of yielding: `EStopEngaged`,
+`LeaseNotIssued`, `LeaseExpired`/`LeaseRevoked`, or `FaultActive`. The check
+controls admission to the context. It is not an OS sandbox, and it cannot
+interrupt an action that has already started.
 
 ## 4. Watch a fault refuse
 
@@ -116,8 +116,8 @@ ilk.ledger.close()
 
 ## Next steps
 
-- `docs/concepts/leases.md` — why authority must decay.
-- `docs/concepts/estop-and-faults.md` — the one halt and the gating bus.
-- `docs/concepts/claims.md` — provenance, review dates, falsifiers.
-- `docs/concepts/ledger.md` — the self-describing run log.
-- `CHARTER.md` — the full design rationale and safety caveats.
+- `docs/concepts/leases.md`: why authority must decay.
+- `docs/concepts/estop-and-faults.md`: the one halt and the gating bus.
+- `docs/concepts/claims.md`: provenance, review dates, falsifiers.
+- `docs/concepts/ledger.md`: the self-describing run log.
+- `CHARTER.md`: the full design rationale and safety caveats.
