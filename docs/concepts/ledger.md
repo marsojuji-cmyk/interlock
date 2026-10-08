@@ -21,6 +21,12 @@ The first line is always the format descriptor:
 It tells a future reader what grammar the rest of the file speaks, before
 a single event is recorded.
 
+A path opens in append mode. Reopening an existing ledger, as every new
+process does, keeps every earlier run and starts a new segment with its own
+format descriptor, series descriptors, and closing index. `read_series()`
+on a path-backed ledger replays every segment in the file. Truncation is
+never the default: pass `mode="w"` to discard a file deliberately.
+
 ### STAGE 2 — APPEND
 
 The first append to a new series writes a series descriptor declaring the
@@ -29,12 +35,17 @@ schema — the record's sorted keys. Every record is then stamped with
 `grants`, `permits`, `denials`, `claims`, and whatever the operator adds.
 `read_series(name)` replays one series in append order.
 
+Every line is flushed to the operating system as it is written, so each
+record survives the writing process crashing before `close()`.
+
 ### STAGE 3 — CLOSE
 
 `close()` appends the index: per series, the record count and the first and
 last timestamps. The index makes any moment of the run randomly accessible
 without scanning the whole file. Closing is idempotent — a run ends once,
 even if `close()` is called twice.
+When the ledger opened the file itself, `close()` also fsyncs it, so a
+closed ledger is on disk, not just in the page cache.
 
 ## Safety
 
