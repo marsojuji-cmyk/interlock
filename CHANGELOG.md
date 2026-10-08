@@ -28,6 +28,10 @@ the current version is `interlock.__version__` (mirrored into `VERSION` by
 ### Added
 - `interlock.LeaseNotIssued`, a subclass of `InterlockError`, plus `LeaseManager.issued()`
   and `LeaseManager.is_revoked()`.
+- 90-second demonstrator (`scripts/demo_90s.py`, transcript in `demo/TRANSCRIPT.md`): a narrated
+  end-to-end run of grant, keepalive, permit, expiry denial, resource-scoped fault gate,
+  global e-stop, provenance-stamped claim, and ledger audit. Exits non-zero on any unexpected
+  behavior.
 
 ## [0.1.0] — 2026-09-27
 ### Added

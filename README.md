@@ -57,6 +57,8 @@ claim = ilk.claim(
 
 The fastest path to a first lease is [`docs/guides/quickstart.md`](docs/guides/quickstart.md).
 
+**90-second demonstrator:** `python3 scripts/demo_90s.py` runs the substrate end to end, narrated: grant, keepalive, permit, expiry denial, resource-scoped fault gate, global e-stop, provenance-stamped claim, and ledger audit. It exits non-zero if any step misbehaves. Expected output: [`demo/TRANSCRIPT.md`](demo/TRANSCRIPT.md).
+
 ## How it fails
 
 | Condition | Behavior |
